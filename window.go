@@ -20,10 +20,11 @@ import (
 )
 
 type Window struct {
-	c   Config
-	w   *xwindow.Window
-	x   *xgbutil.XUtil
-	shm bool
+	c    Config
+	w    *xwindow.Window
+	x    *xgbutil.XUtil
+	ximg *xgraphics.Image
+	shm  bool
 }
 
 // Create a new empty window.
@@ -99,7 +100,68 @@ func (w *Window) Render() {
 // Draw the image on window.
 // `Render` must be called after to actually render the image.
 func (w *Window) Draw(img image.Image) error {
-	ximg, err := w.newImage()
+	var err error
+	err = w.draw(img)
+	if err != nil {
+		return fmt.Errorf("draw image: %v", err)
+	}
+	w.watchInit()
+	err = w.watchConfigure(img)
+	if err != nil {
+		return fmt.Errorf("watch configuration: %v", err)
+	}
+
+	return nil
+}
+
+func (w *Window) newImage() error {
+	rect, err := w.w.Geometry()
+	if err != nil {
+		return fmt.Errorf("get window geometry: %v", err)
+	}
+	w.ximg = xgraphics.New(w.x, image.Rect(0, 0, rect.Width(), rect.Height()))
+	return nil
+}
+
+func (w *Window) watchInit() {
+	cbExp := xevent.ExposeFun(func(xu *xgbutil.XUtil, e xevent.ExposeEvent) {
+		if e.ExposeEvent.Count == 0 {
+			w.ximg.XDraw()
+			w.ximg.XExpPaint(w.w.Id, 0, 0)
+		}
+	})
+	cbExp.Connect(w.x, w.w.Id)
+}
+
+func (w *Window) watchConfigure(img image.Image) error {
+	xrect, err := w.w.Geometry()
+	if err != nil {
+		return fmt.Errorf("get window geometry: %v", err)
+	}
+
+	cbCfg := xevent.ConfigureNotifyFun(func(xu *xgbutil.XUtil, e xevent.ConfigureNotifyEvent) {
+		if xrect.Width() == int(e.Width) && xrect.Height() == int(e.Height) {
+			return
+		}
+		xrect, err = w.w.Geometry()
+		if err != nil {
+			err = fmt.Errorf("get window geometry: %v", err)
+			println(err)
+		}
+
+		err = w.draw(img)
+		if err != nil {
+			err = fmt.Errorf("draw image: %v", err)
+			println(err)
+		}
+	})
+	cbCfg.Connect(w.x, w.w.Id)
+	return nil
+}
+
+func (w *Window) draw(img image.Image) error {
+	// prepare canvas
+	err := w.newImage()
 	if err != nil {
 		return fmt.Errorf("new image: %v", err)
 	}
@@ -107,36 +169,19 @@ func (w *Window) Draw(img image.Image) error {
 	// resize image
 	img = resize.Resize(0, uint(w.c.Height), img, resize.NearestNeighbor)
 
-	// apply image to X-image
+	// apply image to canvas
 	xrect, err := w.w.Geometry()
 	if err != nil {
 		return fmt.Errorf("get window geometry: %v", err)
 	}
 	offset := (xrect.Width() - img.Bounds().Max.X) / 2
 	rect := img.Bounds().Add(image.Pt(offset, 0))
-	draw.Draw(ximg, rect, img, image.Point{}, draw.Over)
+	draw.Draw(w.ximg, rect, img, image.Point{}, draw.Over)
 
-	// draw X-image in window
-	err = ximg.CreatePixmap()
+	// draw canvas in window
+	err = w.ximg.CreatePixmap()
 	if err != nil {
 		return fmt.Errorf("create pixmap: %v", err)
 	}
-
-	cbExp := xevent.ExposeFun(func(xu *xgbutil.XUtil, e xevent.ExposeEvent) {
-		if e.ExposeEvent.Count == 0 {
-			ximg.XDraw()
-			ximg.XExpPaint(w.w.Id, 0, 0)
-		}
-	})
-	cbExp.Connect(w.x, w.w.Id)
 	return nil
-}
-
-func (w *Window) newImage() (*xgraphics.Image, error) {
-	rect, err := w.w.Geometry()
-	if err != nil {
-		return nil, fmt.Errorf("get window geometry: %v", err)
-	}
-	img := xgraphics.New(w.x, image.Rect(0, 0, rect.Width(), rect.Height()))
-	return img, nil
 }
