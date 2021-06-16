@@ -167,15 +167,27 @@ func (w *Window) draw(img image.Image) error {
 	}
 
 	// resize image
-	img = resize.Resize(0, uint(w.c.Height), img, resize.NearestNeighbor)
+	dxCanvas := w.ximg.Bounds().Dx()
+	dyCanvas := w.ximg.Bounds().Dy()
+	ratioCanvas := float64(dxCanvas) / float64(dyCanvas)
+	dxImage := img.Bounds().Dx()
+	dyImage := img.Bounds().Dy()
+	if dxImage > dxCanvas || dyImage > dyCanvas {
+		ratioImage := float64(dxImage) / float64(dyImage)
+		dx := 0
+		dy := 0
+		if ratioImage > ratioCanvas {
+			dx = dxCanvas
+		} else {
+			dy = dyCanvas
+		}
+		img = resize.Resize(uint(dx), uint(dy), img, resize.NearestNeighbor)
+	}
 
 	// apply image to canvas
-	xrect, err := w.w.Geometry()
-	if err != nil {
-		return fmt.Errorf("get window geometry: %v", err)
-	}
-	offset := (xrect.Width() - img.Bounds().Max.X) / 2
-	rect := img.Bounds().Add(image.Pt(offset, 0))
+	offsetX := (dxCanvas - img.Bounds().Max.X) / 2
+	offsetY := (dyCanvas - img.Bounds().Max.Y) / 2
+	rect := img.Bounds().Add(image.Pt(offsetX, offsetY))
 	draw.Draw(w.ximg, rect, img, image.Point{}, draw.Over)
 
 	// draw canvas in window
