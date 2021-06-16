@@ -17,18 +17,7 @@ func show() error {
 	if err != nil {
 		return fmt.Errorf("decode image: %v", err)
 	}
-
-	config := imgshow.NewConfig()
-	win := config.Window()
-	err = win.Create()
-	if err != nil {
-		return fmt.Errorf("create window: %v", err)
-	}
-	err = win.Draw(img)
-	if err != nil {
-		return fmt.Errorf("draw image: %v", err)
-	}
-	return nil
+	return imgshow.Show(img)
 }
 
 func main() {

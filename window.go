@@ -26,6 +26,7 @@ type Window struct {
 	shm bool
 }
 
+// Create a new empty window.
 func (w *Window) Create() error {
 	var err error
 	xgb.Logger.SetOutput(ioutil.Discard)
@@ -84,11 +85,19 @@ func (w *Window) Create() error {
 	return nil
 }
 
-func (w *Window) Destroy() error {
+// Destroy the window
+func (w *Window) Destroy() {
 	w.w.Destroy()
-	return nil
 }
 
+// Render the image and wait for the window to be closed.
+func (w *Window) Render() {
+	w.w.Map()
+	xevent.Main(w.x)
+}
+
+// Draw the image on window.
+// `Render` must be called after to actually render the image.
 func (w *Window) Draw(img image.Image) error {
 	ximg, err := w.newImage()
 	if err != nil {
@@ -120,10 +129,6 @@ func (w *Window) Draw(img image.Image) error {
 		}
 	})
 	cbExp.Connect(w.x, w.w.Id)
-
-	w.w.Map()
-	xevent.Main(w.x)
-
 	return nil
 }
 
