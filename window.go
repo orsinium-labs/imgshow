@@ -95,8 +95,10 @@ func (w *Window) Draw(img image.Image) error {
 		return fmt.Errorf("new image: %v", err)
 	}
 
-	// resize image and apply it to X-image
+	// resize image
 	img = resize.Resize(0, uint(w.c.Height), img, resize.NearestNeighbor)
+
+	// apply image to X-image
 	xrect, err := w.w.Geometry()
 	if err != nil {
 		return fmt.Errorf("get window geometry: %v", err)
@@ -111,8 +113,16 @@ func (w *Window) Draw(img image.Image) error {
 		return fmt.Errorf("create pixmap: %v", err)
 	}
 
-	ximg.XDraw()
-	ximg.XExpPaint(w.w.Id, 0, 0)
+	cbExp := xevent.ExposeFun(func(xu *xgbutil.XUtil, e xevent.ExposeEvent) {
+		if e.ExposeEvent.Count == 0 {
+			ximg.XDraw()
+			ximg.XExpPaint(w.w.Id, 0, 0)
+		}
+	})
+	cbExp.Connect(w.x, w.w.Id)
+
+	w.w.Map()
+	xevent.Main(w.x)
 
 	return nil
 }
