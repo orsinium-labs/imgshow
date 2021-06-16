@@ -1,5 +1,7 @@
 package imgshow
 
+import "sync"
+
 type Config struct {
 	Width  int
 	Height int
@@ -15,5 +17,5 @@ func NewConfig() Config {
 }
 
 func (c Config) Window() Window {
-	return Window{c: c}
+	return Window{c: c, mu: &sync.Mutex{}}
 }

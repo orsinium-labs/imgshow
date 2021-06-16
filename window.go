@@ -6,6 +6,7 @@ import (
 	"image/draw"
 	"io/ioutil"
 	"log"
+	"sync"
 
 	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/shm"
@@ -21,9 +22,12 @@ import (
 )
 
 type Window struct {
-	c    Config
+	c  Config
+	mu *sync.Mutex
+
 	w    *xwindow.Window
 	x    *xgbutil.XUtil
+	img  image.Image
 	ximg *xgraphics.Image
 	shm  bool
 }
@@ -84,6 +88,9 @@ func (w *Window) Create() error {
 		return fmt.Errorf("set window name: %v", err)
 	}
 
+	w.watchInit()
+	w.watchConfigure()
+
 	return nil
 }
 
@@ -98,23 +105,6 @@ func (w *Window) Render() {
 	xevent.Main(w.x)
 }
 
-// Draw the image on window.
-// `Render` must be called after to actually render the image.
-func (w *Window) Draw(img image.Image) error {
-	var err error
-	err = w.draw(img)
-	if err != nil {
-		return fmt.Errorf("draw image: %v", err)
-	}
-	w.watchInit()
-	err = w.watchConfigure(img)
-	if err != nil {
-		return fmt.Errorf("watch configuration: %v", err)
-	}
-
-	return nil
-}
-
 func (w *Window) newImage() error {
 	rect, err := w.w.Geometry()
 	if err != nil {
@@ -126,6 +116,9 @@ func (w *Window) newImage() error {
 
 func (w *Window) watchInit() {
 	cbExp := xevent.ExposeFun(func(xu *xgbutil.XUtil, e xevent.ExposeEvent) {
+		if w.ximg == nil {
+			return
+		}
 		if e.ExposeEvent.Count == 0 {
 			w.ximg.XDraw()
 			w.ximg.XExpPaint(w.w.Id, 0, 0)
@@ -134,25 +127,35 @@ func (w *Window) watchInit() {
 	cbExp.Connect(w.x, w.w.Id)
 }
 
-func (w *Window) watchConfigure(img image.Image) error {
+func (w *Window) watchConfigure() {
 	cbCfg := xevent.ConfigureNotifyFun(func(xu *xgbutil.XUtil, e xevent.ConfigureNotifyEvent) {
+		if w.ximg == nil || w.img == nil {
+			return
+		}
 		xrect := w.ximg.Bounds()
 		if xrect.Dx() == int(e.Width) && xrect.Dy() == int(e.Height) {
 			return
 		}
-		err := w.draw(img)
+		err := w.Draw(w.img)
 		if err != nil {
 			err = fmt.Errorf("draw image: %v", err)
 			log.Println(err)
 		}
 	})
 	cbCfg.Connect(w.x, w.w.Id)
-	return nil
 }
 
-func (w *Window) draw(img image.Image) error {
+// Draw the image on window.
+// `Render` must be called after to actually render the image.
+func (w *Window) Draw(img image.Image) error {
+	var err error
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.img = img
+
 	// prepare canvas
-	err := w.newImage()
+	err = w.newImage()
 	if err != nil {
 		return fmt.Errorf("new image: %v", err)
 	}
@@ -186,5 +189,7 @@ func (w *Window) draw(img image.Image) error {
 	if err != nil {
 		return fmt.Errorf("create pixmap: %v", err)
 	}
+	w.ximg.XDraw()
+	w.ximg.XExpPaint(w.w.Id, 0, 0)
 	return nil
 }
