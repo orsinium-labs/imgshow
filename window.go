@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/BurntSushi/xgb"
-	"github.com/BurntSushi/xgb/shm"
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil"
 	"github.com/BurntSushi/xgbutil/ewmh"
@@ -29,7 +28,6 @@ type Window struct {
 	x    *xgbutil.XUtil
 	img  image.Image
 	ximg *xgraphics.Image
-	shm  bool
 }
 
 // Create a new empty window.
@@ -41,12 +39,6 @@ func (w *Window) Create() error {
 	w.x, err = xgbutil.NewConn()
 	if err != nil {
 		return fmt.Errorf("connect to X server: %v", err)
-	}
-
-	w.shm = true
-	err = shm.Init(w.x.Conn())
-	if err != nil {
-		w.shm = false
 	}
 
 	keybind.Initialize(w.x)
