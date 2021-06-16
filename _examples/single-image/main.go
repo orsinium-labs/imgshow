@@ -9,7 +9,7 @@ import (
 )
 
 func show() error {
-	stream, err := os.Open("lenna.png")
+	stream, err := os.Open("../lenna.png")
 	if err != nil {
 		return fmt.Errorf("open file: %v", err)
 	}
