@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/draw"
 	"io/ioutil"
+	"log"
 
 	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/shm"
@@ -134,25 +135,15 @@ func (w *Window) watchInit() {
 }
 
 func (w *Window) watchConfigure(img image.Image) error {
-	xrect, err := w.w.Geometry()
-	if err != nil {
-		return fmt.Errorf("get window geometry: %v", err)
-	}
-
 	cbCfg := xevent.ConfigureNotifyFun(func(xu *xgbutil.XUtil, e xevent.ConfigureNotifyEvent) {
-		if xrect.Width() == int(e.Width) && xrect.Height() == int(e.Height) {
+		xrect := w.ximg.Bounds()
+		if xrect.Dx() == int(e.Width) && xrect.Dy() == int(e.Height) {
 			return
 		}
-		xrect, err = w.w.Geometry()
-		if err != nil {
-			err = fmt.Errorf("get window geometry: %v", err)
-			println(err)
-		}
-
-		err = w.draw(img)
+		err := w.draw(img)
 		if err != nil {
 			err = fmt.Errorf("draw image: %v", err)
-			println(err)
+			log.Println(err)
 		}
 	})
 	cbCfg.Connect(w.x, w.w.Id)
