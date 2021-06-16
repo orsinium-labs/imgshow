@@ -11,7 +11,7 @@ import (
 	"github.com/orsinium-labs/imgshow"
 )
 
-func sendImages(win imgshow.Window, imgs ...image.Image) {
+func sendImages(win *imgshow.Window, imgs ...image.Image) {
 	for {
 		for _, img := range imgs {
 			err := win.Draw(img)
@@ -48,7 +48,7 @@ func show() error {
 		return fmt.Errorf("create window: %v", err)
 	}
 	defer win.Destroy()
-	go sendImages(win, img1, img2)
+	go sendImages(&win, img1, img2)
 	win.Render()
 	if err != nil {
 		return fmt.Errorf("render image: %v", err)
