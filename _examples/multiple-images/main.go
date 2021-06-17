@@ -48,7 +48,7 @@ func show() error {
 		return fmt.Errorf("create window: %v", err)
 	}
 	defer win.Destroy()
-	go sendImages(&win, img1, img2)
+	go sendImages(win, img1, img2)
 	win.Render()
 	if err != nil {
 		return fmt.Errorf("render image: %v", err)

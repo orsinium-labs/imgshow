@@ -1,6 +1,7 @@
 package imgshow
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"image/draw"
@@ -32,6 +33,13 @@ type Window struct {
 
 // Create a new empty window.
 func (w *Window) Create() error {
+	if w.mu == nil {
+		return errors.New("Window must be created using Config.Window")
+	}
+	if !w.c.generated {
+		return errors.New("Config must be created using NewConfig")
+	}
+
 	var err error
 	xgb.Logger.SetOutput(ioutil.Discard)
 	xgbutil.Logger.SetOutput(ioutil.Discard)
@@ -140,6 +148,10 @@ func (w *Window) watchConfigure() {
 // Draw the image on window.
 // `Render` must be called after to actually render the image.
 func (w *Window) Draw(img image.Image) error {
+	if w.w == nil {
+		return errors.New("Window.Create must be called before Window.Draw")
+	}
+
 	var err error
 	w.mu.Lock()
 	defer w.mu.Unlock()
