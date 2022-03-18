@@ -18,7 +18,7 @@ img, _ := png.Decode(stream)
 imgshow.Show(img)
 ```
 
-See [_examples](./examples/) directory for more examples.
+See [_examples](./_examples/) directory for more examples.
 
 ## Standing on the shoulders of giants
 
